@@ -1,16 +1,20 @@
 #![deny(warnings)]
 
-use std::collections::{hash_map::DefaultHasher, HashMap};
-use std::convert::Infallible;
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::{
+    collections::{hash_map::DefaultHasher, HashMap},
+    convert::Infallible,
+    hash::{Hash, Hasher},
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
-use hyper::body::Bytes;
-use hyper::client::HttpConnector;
-use hyper::http::HeaderValue;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Error, Request, Response, Server, Client, StatusCode, Version, HeaderMap};
+use hyper::{
+    body::Bytes,
+    client::HttpConnector,
+    http::HeaderValue,
+    service::{make_service_fn, service_fn},
+    {Body, Error, Request, Response, Server, Client, StatusCode, Version, HeaderMap},
+};
 use hyper_tls::HttpsConnector;
 use tokio::sync::Mutex;
 
@@ -41,7 +45,7 @@ impl Controller {
         }
     }
 
-    pub async fn process(self: Arc<Self>, req: Request<Body>) -> Result<Response<Body>, Error> {
+    pub async fn process(&self, req: Request<Body>) -> Result<Response<Body>, Error> {
         let req_hash = self.calculate_hash(&format!("{:?}", req));
 
         let response = {
@@ -135,7 +139,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let controller = controller.clone();
         make_service_fn(move |_| {
             let controller = controller.clone();
-            async { Ok::<_, Infallible>(service_fn(move |req| controller.clone().process(req))) }
+            async move {
+                Ok::<_, Infallible>(service_fn(move |req| {
+                    let controller = controller.clone();
+                    async move {
+                        controller.process(req).await
+                    }
+                }))
+            }
         })
     };
 
